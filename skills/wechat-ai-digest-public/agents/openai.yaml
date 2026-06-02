@@ -1,0 +1,3 @@
+display_name: WeChat AI Digest Worker
+short_description: Maintain an open-source Cloudflare Worker for AI news WeChat drafts.
+default_prompt: Check this WeChat AI digest Worker for source freshness, safe configuration, and draft generation reliability.

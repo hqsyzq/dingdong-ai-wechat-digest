@@ -83,6 +83,18 @@ Deploy:
 npx wrangler deploy
 ```
 
+## Optional Codex Skill
+
+This repository includes a sanitized public Codex skill at:
+
+```text
+skills/wechat-ai-digest-public/
+```
+
+It is intended for open-source users and uses generic placeholders only.
+
+If you maintain a private local Codex skill for your own deployment, keep it outside this repository, for example under your personal Codex skills directory. Private skills may contain local paths, account-specific deployment notes, or private operational habits and should not be committed.
+
 ## Manual Endpoints
 
 All protected endpoints require JSON body field `secret`, matching `SHARED_SECRET`.
