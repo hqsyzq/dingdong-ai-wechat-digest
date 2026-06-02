@@ -1,112 +1,112 @@
 ---
 name: wechat-ai-digest-public
-description: Use when maintaining or extending an open-source Cloudflare Worker that generates AI news digests for a WeChat Official Account, including source collection, freshness filtering, WeChat draft creation, article rendering, deployment, and troubleshooting. This public skill uses generic placeholders and must not contain private project paths, account-specific URLs, or secrets.
+description: 维护或扩展一个开源的微信公众号 AI 日报 Cloudflare Worker 时使用，包括资讯源抓取、新鲜度过滤、微信公众号草稿创建、文章渲染、部署和故障排查。这个公开 skill 必须使用通用占位信息，不能包含私有项目路径、账号专属 URL 或密钥。
 metadata:
-  short-description: Maintain an open-source WeChat AI digest worker
+  short-description: 维护开源版微信公众号 AI 日报 Worker
 ---
 
-# WeChat AI Digest Public Skill
+# 微信 AI 日报公开 Skill
 
-Use this skill for open-source forks of the WeChat AI digest Worker.
+用于开源版微信公众号 AI 日报 Worker。
 
-## Scope
+## 适用范围
 
-- Cloudflare Worker that collects AI news and creates WeChat Official Account drafts.
-- OpenAI-compatible LLM generation.
-- WeChat-compatible HTML rendering.
-- Freshness filtering and recent-draft deduplication.
-- Source inspection and deployment troubleshooting.
+- 运行在 Cloudflare Workers 上的 AI 资讯抓取和微信公众号草稿创建项目
+- 兼容 OpenAI 接口格式的大模型生成
+- 微信兼容 HTML 渲染
+- 新鲜度过滤和近期草稿去重
+- 资讯源检查、部署和故障排查
 
-This public skill must stay generic. Do not add private local paths, account names, Worker URLs, API keys, access tokens, or user-specific deployment shortcuts.
+这个公开 skill 必须保持通用。不要加入私有本地路径、账号名、Worker URL、API key、access token 或用户专属部署快捷命令。
 
-## Repository Layout
+## 仓库结构
 
-Expected files:
+预期文件：
 
-- `index.js`: Worker routes, cron handler, source fetching, LLM calls, WeChat API calls
-- `article-renderer.js`: Markdown to WeChat-compatible HTML
-- `wrangler.toml`: Worker config and cron
-- `renderer-smoke-test.mjs`: renderer smoke test
-- `README.md`: setup and operating guide
+- `index.js`：Worker 路由、cron 处理、资讯源抓取、LLM 调用、微信 API 调用
+- `article-renderer.js`：Markdown 到微信兼容 HTML 的渲染器
+- `wrangler.toml`：Worker 配置和定时任务
+- `renderer-smoke-test.mjs`：渲染器冒烟测试
+- `README.md`：安装、配置和运行说明
 
-## Safety Rules
+## 安全规则
 
-- Never print or commit secrets.
-- Use `wrangler secret put` for:
+- 不要打印或提交任何密钥
+- 使用 `wrangler secret put` 设置：
   - `WECHAT_APP_ID`
   - `WECHAT_APP_SECRET`
   - `THUMB_MEDIA_ID`
   - `SHARED_SECRET`
   - `LLM_API_KEY`
-- Keep `.wrangler/`, `.env`, logs, screenshots, and local configuration ignored.
-- Draft generation consumes LLM tokens.
-- Source inspection and deployment checks do not consume LLM tokens.
-- Keep `AUTO_PUBLISH = "false"` unless the WeChat account has freepublish permission.
+- 忽略 `.wrangler/`、`.env`、日志、截图和本地配置
+- 生成草稿会消耗大模型 token
+- 资讯源检查和部署检查不会消耗大模型 token
+- 除非公众号拥有 `freepublish` 权限，否则保持 `AUTO_PUBLISH = "false"`
 
-## Workflow
+## 工作流程
 
-1. Inspect the relevant files before editing.
-2. Prefer code-side validation and filtering over prompt-only fixes.
-3. Run:
+1. 修改前先阅读相关文件。
+2. 优先用代码侧校验和过滤解决问题，不要只依赖提示词。
+3. 运行检查：
 
 ```bash
 npm run check
 ```
 
-4. Deploy:
+4. 部署：
 
 ```bash
 npx wrangler deploy
 ```
 
-5. For manual generation, call `POST /generate` with `draftOnly: true`.
+5. 手动生成时，调用 `POST /generate` 并设置 `draftOnly: true`。
 
-## Protected Endpoints
+## 受保护接口
 
-All protected endpoints require JSON body field `secret`, matching `SHARED_SECRET`.
+所有受保护接口都需要 JSON body 字段 `secret`，值等于 `SHARED_SECRET`。
 
-- `POST /generate`: generate and create a draft; consumes LLM tokens.
-- `POST /source-status`: inspect source candidates; no LLM token use.
-- `POST /publication-status`: inspect recent drafts/published items; no LLM token use.
-- `POST /model-info`: inspect configured provider/model without exposing keys.
-- `POST /debug`: check whether required environment variables exist.
-- `POST /publish-existing`: attempt to publish an existing draft by `media_id`.
+- `POST /generate`：生成文章并创建草稿，会消耗大模型 token
+- `POST /source-status`：检查资讯候选，不消耗大模型 token
+- `POST /publication-status`：检查近期草稿和发布内容，不消耗大模型 token
+- `POST /model-info`：检查模型供应商和模型名，不暴露 key
+- `POST /debug`：检查必要环境变量是否存在
+- `POST /publish-existing`：根据 `media_id` 尝试发布已有草稿
 
-## Content Policy
+## 内容策略
 
-- Include China domestic AI news when relevant domestic candidates exist.
-- Prefer official, policy, company, and industry sources over generic media rewrites.
-- Avoid repeated stories from recent drafts.
-- Source lines should be concrete and verifiable, preferably direct URLs.
-- Avoid generic source labels such as only `Source`, `X`, `Twitter`, or a platform name.
+- 如果有可用的国内候选，应包含中国国内 AI 资讯
+- 优先选择官方、政策、公司和产业来源，而不是泛泛的媒体改写
+- 避免重复近期草稿中已经出现过的旧闻
+- 来源行应具体、可核验，优先使用直接 URL
+- 避免只写 `来源`、`X`、`Twitter` 或单纯平台名
 
-## Freshness
+## 新鲜度
 
-Before calling the LLM:
+调用大模型前：
 
-- Fetch recent WeChat drafts.
-- Extract previous titles, digest text, body text, and URLs.
-- Normalize titles and canonicalize URLs.
-- Filter incoming candidates already used in recent drafts.
-- Report raw and filtered counts in `source-status`.
+- 获取近期微信公众号草稿
+- 提取历史标题、摘要、正文和 URL
+- 规范化标题，标准化 URL
+- 过滤已经在近期草稿中出现过的候选
+- 在 `source-status` 中报告原始数量和过滤后数量
 
-If stale stories still appear, strengthen code-side filtering first.
+如果仍然出现旧闻，先加强代码侧过滤。
 
-## WeChat Rendering
+## 微信渲染
 
-WeChat mobile strips or weakens many CSS effects. Prefer:
+微信移动端会移除或弱化很多 CSS 效果。优先使用：
 
-- simple HTML tags
-- inline styles
-- explicit margins
-- `background-color` over complex CSS effects
+- 简单 HTML 标签
+- inline style
+- 明确的上下间距
+- `background-color`，而不是复杂 CSS 效果
 
-Avoid relying on external CSS, pseudo-elements, or `text-align: justify`.
+避免依赖外部 CSS、伪元素或 `text-align: justify`。
 
-## Common Failures
+## 常见故障
 
-- `Too many subrequests by single Worker invocation`: reduce source count, mirror retries, or external page fetches.
-- `Unauthorized`: check `SHARED_SECRET`.
-- `48001 api unauthorized`: account lacks publish/freepublish permission; draft creation may still work.
-- No domestic news: inspect `source-status`, then adjust domestic source routes or filtering.
-- Repeated old topics: improve URL canonicalization, title normalization, or recent-draft window size.
+- `Too many subrequests by single Worker invocation`：减少资讯源数量、RSSHub 镜像重试次数或外部页面抓取次数
+- `Unauthorized`：检查 `SHARED_SECRET`
+- `48001 api unauthorized`：公众号缺少发布接口权限，但通常仍可创建草稿
+- 没有国内资讯：检查 `source-status`，再调整国内源路由或过滤逻辑
+- 重复旧话题：改进 URL 标准化、标题规范化或近期草稿窗口

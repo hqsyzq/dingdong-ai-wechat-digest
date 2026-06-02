@@ -2,7 +2,7 @@
   "name": "dingdong-ai-wechat-digest",
   "private": false,
   "version": "0.1.0",
-  "description": "Cloudflare Worker that generates daily AI digest drafts for a WeChat Official Account.",
+  "description": "用于自动生成微信公众号 AI 日报草稿的 Cloudflare Worker。",
   "license": "MIT",
   "type": "module",
   "scripts": {
