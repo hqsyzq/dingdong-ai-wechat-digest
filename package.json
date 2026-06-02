@@ -1,0 +1,12 @@
+{
+  "name": "dingdong-ai-wechat-digest",
+  "private": false,
+  "version": "0.1.0",
+  "description": "Cloudflare Worker that generates daily AI digest drafts for a WeChat Official Account.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "preview": "node preview-server.mjs",
+    "check": "node --check index.js && node --check article-renderer.js && node --check preview-server.mjs && node renderer-smoke-test.mjs"
+  }
+}

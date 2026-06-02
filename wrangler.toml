@@ -1,0 +1,15 @@
+name = "wechat-oa-proxy"
+main = "index.js"
+compatibility_date = "2025-05-01"
+
+# Cron trigger: daily at 9:00 AM China Standard Time (UTC+8 = 01:00 UTC).
+# WeChat currently returns 48001 for freepublish APIs, so scheduled runs stay in drafts until permission is available.
+[vars]
+AUTO_PUBLISH = "false"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[triggers]
+crons = ["0 1 * * *"]

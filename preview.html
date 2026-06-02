@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DingDong.ai | 微信文章排版预览</title>
+  <style>
+    :root {
+      --canvas: #edf2f8;
+      --ink: #162437;
+      --muted: #7a8798;
+      --blue: #1766c2;
+      --line: #e4eaf2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(280px, 390px) minmax(390px, 460px);
+      gap: 34px;
+      align-items: start;
+      justify-content: center;
+      padding: 42px 24px 64px;
+    }
+    .editor {
+      position: sticky;
+      top: 30px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 14px 36px rgba(19, 39, 69, 0.06);
+    }
+    .editor small {
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+    }
+    .editor h1 {
+      margin: 12px 0 8px;
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 26px;
+      line-height: 1.4;
+    }
+    .editor p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 460px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+      background: #fbfcfe;
+      color: #314052;
+      font: 13px/1.8 "SFMono-Regular", Consolas, monospace;
+      outline: none;
+    }
+    textarea:focus { border-color: #a8c7eb; }
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 13px 16px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .phone {
+      overflow: hidden;
+      border-radius: 22px;
+      background: #fff;
+      border: 1px solid #e0e7f0;
+      box-shadow: 0 20px 55px rgba(15, 33, 59, 0.12);
+    }
+    .wechat-title {
+      padding: 30px 20px 18px;
+      border-bottom: 1px solid #f0f3f7;
+      background: #fff;
+    }
+    .wechat-title h2 {
+      margin: 0 0 10px;
+      color: #101b2b;
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 27px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+    .wechat-title span {
+      margin-right: 9px;
+      color: #8390a2;
+      font-size: 13px;
+    }
+    #preview { background: #fff; }
+    @media (max-width: 880px) {
+      .workspace { display: block; padding: 16px; }
+      .editor { position: static; margin-bottom: 20px; }
+      .phone { max-width: 440px; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="workspace">
+    <section class="editor">
+      <small>LAYOUT LAB / V1</small>
+      <h1>公众号文章排版预览</h1>
+      <p>右侧模拟移动端阅读效果。修改 Markdown 后点“重新渲染”，预览与 Worker 使用同一套渲染代码。</p>
+      <textarea id="source">【今日头条】
+
+OpenAI 发布新的 agent 工具链，将浏览器操作、文件处理和代码执行整合到统一工作流。对普通用户而言，这意味着 AI 从“回答问题”进一步进入“完成任务”的阶段。
+
+这一变化真正值得关注的地方，不是模型又多了一个功能，而是产品正在把可靠执行能力变成竞争门槛。
+
+[OpenAI 官方博客](https://openai.com/news/)
+
+---
+
+【今日速览】
+
+**1. Google 扩大 Gemini 在办公场景中的入口**
+
+新的工作区能力让摘要、检索和写作进一步融入日常协作，企业用户将更容易衡量 AI 的实际回报。
+
+[Google Blog](https://blog.google/)
+
+**2. 开源模型继续逼近商业模型体验**
+
+更小的部署成本与更灵活的定制方式，让团队在产品原型阶段有了更多选择。
+
+[Hacker News](https://news.ycombinator.com/)
+
+---
+
+【深度解读】
+
+AI 产品的竞争正在从“模型排行”转向“谁能稳定完成连续任务”。当工具调用、权限控制和结果核验成为默认能力，用户最终购买的并不是一个更聪明的聊天窗口，而是一种更短的工作路径。
+
+> 真正决定产品留存的，往往不是惊艳的一次回答，而是重复任务能否稳定交付。
+
+---
+
+【今日趣闻】
+
+有人开始让 agent 负责整理自己的阅读清单，结果最大的收获不是读得更多，而是终于发现自己收藏了多少从未打开过的文章。</textarea>
+      <button id="render">重新渲染</button>
+    </section>
+    <article class="phone">
+      <header class="wechat-title">
+        <h2>Agent 进入执行阶段：AI 产品的新门槛出现了</h2>
+        <span>DingDong.ai</span><span>今天</span>
+      </header>
+      <div id="preview"></div>
+    </article>
+  </main>
+  <script type="module">
+    import { markdownToHTML, removeEmptySections } from './article-renderer.js';
+
+    const source = document.getElementById('source');
+    const preview = document.getElementById('preview');
+    function render() {
+      preview.innerHTML = markdownToHTML(removeEmptySections(source.value));
+    }
+    document.getElementById('render').addEventListener('click', render);
+    render();
+  </script>
+</body>
+</html>
