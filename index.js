@@ -347,6 +347,58 @@ function chinaReliabilityScore(item) {
   return score;
 }
 
+function chinaQualityPenalty(item) {
+  const title = normalizeComparableText(item.title || '');
+  const url = String(item.url || '').toLowerCase();
+  let penalty = 0;
+
+  const lowQualityTitlePatterns = [
+    '备案流程', '全流程', '保姆级', '详解', '申请表', '指南', '教程', '知乎',
+    'csdn博客', '行业深度报告', '全景梳理'
+  ];
+  if (lowQualityTitlePatterns.some(pattern => title.includes(normalizeComparableText(pattern)))) penalty += 8;
+
+  if (url.includes('baidu.com/link?')) penalty += 3;
+  if (url.includes('chat.baidu.com/search')) penalty += 4;
+  if (url.includes('image.baidu.com')) penalty += 20;
+  if (url.includes('/product/')) penalty += 8;
+  if (url.includes('zhihu.com') || url.includes('blog.csdn.net')) penalty += 6;
+  if (!item.publishedAt && item.category === 'policy') penalty += 3;
+  if (!item.publishedAt && item.category === 'official' && url.split('/').filter(Boolean).length <= 2) penalty += 8;
+  if (title.includes('inspiringagitobenefithumanity')) penalty += 10;
+  return penalty;
+}
+
+function chinaDomesticRelevanceScore(item) {
+  const text = normalizeComparableText(`${item.title || ''}\n${item.summary || ''}\n${item.source || ''}`);
+  const markers = [
+    '中国', '国内', '国产', '工信部', '网信办', '科技部', '信通院',
+    '阿里', '阿里云', '通义', '千问', 'qwen', '百度', '文心', '千帆',
+    '腾讯', '混元', '字节', '豆包', '火山引擎', 'deepseek', '智谱',
+    'glm', 'kimi', '月之暗面', 'minimax', '商汤', '阶跃', '百川',
+    '零一万物', '华为', '盘古', '昇腾', '寒武纪', '宇树', '面壁',
+    '智元', '机器人', '智能制造', '算力', '芯片'
+  ];
+  return markers.reduce((score, marker) =>
+    text.includes(normalizeComparableText(marker)) ? score + 1 : score, 0);
+}
+
+function chinaStoryRankScore(item) {
+  return item.keywordScore + chinaReliabilityScore(item) + chinaDomesticRelevanceScore(item) - chinaQualityPenalty(item);
+}
+
+function selectMandatoryChinaStories(stories = []) {
+  const domesticStories = stories.filter(item => chinaDomesticRelevanceScore(item) > 0);
+  const pool = domesticStories.length >= 2 ? domesticStories : stories;
+  const preferred = pool
+    .filter(item => !chinaQualityPenalty(item))
+    .sort((a, b) => chinaStoryRankScore(b) - chinaStoryRankScore(a));
+  const fallback = pool
+    .filter(item => chinaQualityPenalty(item))
+    .sort((a, b) => chinaStoryRankScore(b) - chinaStoryRankScore(a));
+  return [...preferred, ...fallback].slice(0, 6);
+}
+
 function normalizeRSSHubItem(item, feed) {
   const title = stripHTML(item.title || '');
   const url = item.url || item.external_url || item.id || '';
@@ -443,14 +495,9 @@ async function fetchOfficialWebSource(source) {
   try {
     const html = await fetchText(source.url);
     if (!html) return [];
-    const pageTitle = firstMatch(html, /<title\b[^>]*>([\s\S]*?)<\/title>/i);
-    const pageDescription =
-      firstMatch(html, /<meta\b[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
-      firstMatch(html, /<meta\b[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
     const candidates = [
       ...extractStructuredArticles(html, source.url),
-      ...extractAnchors(html, source.url),
-      { title: pageTitle, url: source.url, publishedAt: '', summary: pageDescription }
+      ...extractAnchors(html, source.url)
     ];
     const seen = new Set();
     return candidates
@@ -500,9 +547,7 @@ async function fetchChinaAIStories() {
         return true;
       })
       .sort((a, b) => {
-        const scoreA = a.keywordScore + chinaReliabilityScore(a);
-        const scoreB = b.keywordScore + chinaReliabilityScore(b);
-        return scoreB - scoreA;
+        return chinaStoryRankScore(b) - chinaStoryRankScore(a);
       });
 
     const primary = allStories.filter(item =>
@@ -548,7 +593,17 @@ async function generateDigest(feeds, hnStories, chinaStories) {
     category: s.category,
     url: s.url,
     publishedAt: s.publishedAt,
-    summary: s.summary?.slice(0, 220) || ''
+    summary: s.summary?.slice(0, 220) || '',
+    rankScore: chinaStoryRankScore(s)
+  }));
+  const mandatoryChinaBriefs = selectMandatoryChinaStories(chinaStories).map(s => ({
+    title: s.title,
+    source: s.source,
+    category: s.category,
+    url: s.url,
+    publishedAt: s.publishedAt,
+    summary: s.summary?.slice(0, 220) || '',
+    rankScore: chinaStoryRankScore(s)
   }));
 
   const systemPrompt = `你是一位资深科技媒体主编，每天为微信公众号撰写一篇 AI 行业日报。读者是对AI感兴趣的普通人，不是技术专家。
@@ -572,9 +627,10 @@ async function generateDigest(feeds, hnStories, chinaStories) {
 11. 如果某个板块没有内容，直接跳过，不要写「暂无」
 12. 板块之间用 --- 分隔
 13. 所有链接必须使用原始素材中的真实 URL，并以 Markdown 格式独占一行。链接文字规则：官方公告可写发布机构名，如 [OpenAI](url)；来自 X/Twitter 的内容必须写具体账号或博主名，如 [Aaron Levie](url)，禁止只写 X / Twitter；来自 Hacker News 或 GitHub 的项目内容可直接把完整 URL 作为链接文字，如 [https://github.com/...](https://github.com/...)
-14. 文章必须兼顾国内外 AI 动态；如果「中国国内AI资讯候选」非空，至少选择 2 条国内事件进入「今日速览」或「今日头条」，不要因为海外资讯热度高而忽略国内事件
+14. 文章必须兼顾国内外 AI 动态；如果「国内必选候选」非空，至少选择其中 2 条进入「今日速览」或「今日头条」，不要因为海外资讯热度高而忽略国内事件
 15. 国内资讯优先选择官方页面、政策源、大厂/模型公司直接动态，其次才是媒体二手报道；国内资讯要写出对中国读者的现实影响，不要只把媒体标题换一种说法
 16. 候选素材已经过滤过近期草稿中用过的链接和标题。写作时继续坚持“最新优先”，不要主动回顾旧闻；没有新进展的旧事件不要写
+17. 如果没有写入至少 2 条国内 AI 动态，输出视为不合格。不要只写海外 AI 新闻
 
 ## 输出模板（严格遵循）
 
@@ -617,7 +673,12 @@ async function generateDigest(feeds, hnStories, chinaStories) {
 - 深度解读：250-350字`;
 
   // Build context with all sources
-  let contextBlock = '【中国国内AI资讯候选】\n';
+  let contextBlock = '【国内必选候选】\n';
+  contextBlock += mandatoryChinaBriefs.length
+    ? JSON.stringify(mandatoryChinaBriefs, null, 2)
+    : '今日未筛出高质量国内必选候选。';
+
+  contextBlock += '\n\n【中国国内AI资讯候选】\n';
   contextBlock += chinaBriefs.length
     ? JSON.stringify(chinaBriefs, null, 2)
     : '今日未抓取到高相关国内AI资讯，请不要硬编国内新闻。';
@@ -637,8 +698,9 @@ async function generateDigest(feeds, hnStories, chinaStories) {
 - 标题要有吸引力，让读者想点进去
 - 头条选最有新闻价值的一条，不要贪多
 - 速览覆盖不同领域（产品、政策、技术、资本），避免全是同一类
-- 今日速览必须优先保证至少2条国内AI动态；如果国内有更重要事件，可以让国内事件做头条
+- 今日速览必须优先保证至少2条国内AI动态；优先从「国内必选候选」中选择，如果国内有更重要事件，可以让国内事件做头条
 - 国内AI动态优先从官方、大厂、政策和产业联盟源中选择，媒体热榜只能作为补充
+- 如果全文没有至少2条国内AI动态，请重写，不要输出纯海外资讯稿
 - 只写最新进展。不要把前几天已经出现过、今天没有新进展的内容重新包装成新闻
 - 深度解读要有你的编辑判断，不要只是事实复述
 - 所有链接必须来自原始数据，不要编造
@@ -924,13 +986,25 @@ async function handleRequest(request, env, ctx) {
             chinaStories: Math.max(0, rawChinaStories.length - chinaStories.length)
           }
         },
+        mandatoryChinaStories: selectMandatoryChinaStories(chinaStories).map(item => ({
+          title: item.title,
+          source: item.source,
+          category: item.category,
+          url: item.url,
+          rankScore: chinaStoryRankScore(item),
+          qualityPenalty: chinaQualityPenalty(item),
+          domesticScore: chinaDomesticRelevanceScore(item)
+        })),
         chinaStories: chinaStories.slice(0, 12).map(item => ({
           title: item.title,
           source: item.source,
           category: item.category,
           url: item.url,
           keywordScore: item.keywordScore,
-          reliabilityScore: chinaReliabilityScore(item)
+          reliabilityScore: chinaReliabilityScore(item),
+          qualityPenalty: chinaQualityPenalty(item),
+          rankScore: chinaStoryRankScore(item),
+          domesticScore: chinaDomesticRelevanceScore(item)
         }))
       });
     } catch (err) {
